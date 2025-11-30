@@ -35,13 +35,18 @@ const initializeChat = (io) => {
             if (!alreadyJoined) {
                 // Registrar en el mapa
                 connectedUsers.set(socket.id, { userId, name, meetingId });
-                // Emitir a todos en la sala (excepto el que se une) que un usuario se unió
-                socket.to(meetingId).emit('user-joined', { userId, name });
+                // Emitir a TODA la sala (incluyendo al que se une) que un usuario se unió
+                io.to(meetingId).emit('user-joined', { userId, name });
                 console.log(`✅ [CHAT] Usuario ${socket.id} unido a sala: ${meetingId}`);
             }
             else {
                 console.log(`⚠️ [CHAT] Usuario ${userId} ya estaba en la sala ${meetingId}, reconexión detectada`);
             }
+            // Enviar lista completa de participantes al que se une (para sincronización inicial)
+            const participants = Array.from(connectedUsers.values())
+                .filter(u => u.meetingId === meetingId)
+                .map(u => ({ userId: u.userId, name: u.name }));
+            socket.emit('participants-list', participants);
             socket.emit('joined', `Unido a reunión ${meetingId}`);
         });
         // Handle chat messages (sin cambios)
@@ -71,8 +76,8 @@ const initializeChat = (io) => {
             if (userData) {
                 const { userId, name, meetingId } = userData;
                 console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (${name})`);
-                // Emitir a todos en la sala que el usuario salió
-                socket.to(meetingId).emit('user-left', { userId });
+                // Emitir a TODA la sala que el usuario salió
+                io.to(meetingId).emit('user-left', { userId });
                 // Remover del mapa
                 connectedUsers.delete(socket.id);
                 // Verificar si la sala está vacía y terminar la reunión automáticamente
