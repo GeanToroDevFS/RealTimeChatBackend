@@ -33,12 +33,20 @@ export const initializeChat = (io: SocketIOServer) => {
         return;
       }
       socket.join(meetingId);
-      // Registrar en el mapa
-      connectedUsers.set(socket.id, { userId, name, meetingId });
-      // Emitir a todos en la sala (incluyendo al que se une) que un usuario se unió
-      io.to(meetingId).emit('user-joined', { userId, name });
+      
+      // Verificar si el usuario ya está registrado (para evitar duplicados en reconexiones)
+      const alreadyJoined = Array.from(connectedUsers.values()).some(u => u.userId === userId && u.meetingId === meetingId);
+      if (!alreadyJoined) {
+        // Registrar en el mapa
+        connectedUsers.set(socket.id, { userId, name, meetingId });
+        // Emitir a todos en la sala (excepto el que se une) que un usuario se unió
+        socket.to(meetingId).emit('user-joined', { userId, name });
+        console.log(`✅ [CHAT] Usuario ${socket.id} unido a sala: ${meetingId}`);
+      } else {
+        console.log(`⚠️ [CHAT] Usuario ${userId} ya estaba en la sala ${meetingId}, reconexión detectada`);
+      }
+      
       socket.emit('joined', `Unido a reunión ${meetingId}`);
-      console.log(`✅ [CHAT] Usuario ${socket.id} unido a sala: ${meetingId}`);
     });
 
     // Handle chat messages (sin cambios)
@@ -52,7 +60,7 @@ export const initializeChat = (io: SocketIOServer) => {
       });
     });
 
-    // Leave meeting (sin cambios, pero ahora opcional ya que manejamos disconnect)
+    // Leave meeting (sin cambios)
     socket.on('leave-meeting', (meetingId: string) => {
       socket.leave(meetingId);
       console.log(`🚪 [CHAT] Usuario ${socket.id} salió de reunión: ${meetingId}`);
@@ -65,16 +73,25 @@ export const initializeChat = (io: SocketIOServer) => {
       io.to(meetingId).emit('meeting-ended', 'La reunión ha terminado.');
     });
 
-    // Handle disconnect: Emitir user-left a la sala
+    // Handle disconnect: Emitir user-left y terminar reunión si está vacía
     socket.on('disconnect', () => {
       const userData = connectedUsers.get(socket.id);
       if (userData) {
         const { userId, name, meetingId } = userData;
         console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (${name})`);
+        
         // Emitir a todos en la sala que el usuario salió
-        io.to(meetingId).emit('user-left', { userId });
+        socket.to(meetingId).emit('user-left', { userId });
+        
         // Remover del mapa
         connectedUsers.delete(socket.id);
+        
+        // Verificar si la sala está vacía y terminar la reunión automáticamente
+        const room = io.sockets.adapter.rooms.get(meetingId);
+        if (!room || room.size === 0) {
+          console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente`);
+          meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
+        }
       } else {
         console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (sin datos registrados)`);
       }
