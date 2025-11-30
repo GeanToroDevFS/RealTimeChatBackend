@@ -1,0 +1,86 @@
+"use strict";
+/**
+ * MeetingDAO
+ *
+ * Data Access Object responsible for CRUD operations on the "meetings" collection in Firestore.
+ * This class encapsulates Firestore interactions for meeting metadata (no messages or participants stored).
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.MeetingDAO = void 0;
+const firebase_1 = require("../config/firebase");
+/**
+ * MeetingDAO class for Firestore operations on meetings.
+ */
+class MeetingDAO {
+    /**
+     * Create a new meeting document in Firestore.
+     *
+     * Generates a new document with an auto-generated ID, stores creatorId, status, and createdAt.
+     *
+     * @param {MeetingCreate} meetingData - Data required to create a meeting (creatorId).
+     * @returns {Promise<Meeting>} The created Meeting object (includes generated id).
+     */
+    async createMeeting(meetingData) {
+        console.log('🔹 [MEETINGDAO] Creando reunión en Firestore...');
+        const docRef = firebase_1.db.collection('meetings').doc();
+        const meeting = {
+            id: docRef.id,
+            creatorId: meetingData.creatorId,
+            status: 'active',
+            createdAt: new Date(),
+        };
+        await docRef.set({
+            creatorId: meeting.creatorId,
+            status: meeting.status,
+            createdAt: meeting.createdAt,
+        });
+        console.log('✅ [MEETINGDAO] Reunión creada correctamente');
+        return meeting;
+    }
+    /**
+     * Retrieve a meeting by its Firestore document ID.
+     *
+     * @param {string} id - Firestore document ID of the meeting.
+     * @returns {Promise<Meeting | null>} The Meeting object if found, otherwise null.
+     */
+    async getMeetingById(id) {
+        console.log(`🔹 [MEETINGDAO] Buscando reunión por ID: ${id}`);
+        const doc = await firebase_1.db.collection('meetings').doc(id).get();
+        if (!doc.exists) {
+            console.log('⚠️ [MEETINGDAO] Reunión no encontrada');
+            return null;
+        }
+        const data = doc.data();
+        console.log('✅ [MEETINGDAO] Reunión encontrada');
+        return {
+            id: doc.id,
+            creatorId: data.creatorId,
+            status: data.status,
+            createdAt: data.createdAt.toDate(),
+        };
+    }
+    /**
+     * Update a meeting's status (e.g., mark as 'ended').
+     *
+     * @param {string} id - Firestore document ID of the meeting.
+     * @param {string} status - New status ('active' or 'ended').
+     * @returns {Promise<void>} Resolves when update completes.
+     */
+    async updateMeetingStatus(id, status) {
+        console.log(`🔹 [MEETINGDAO] Actualizando estado de reunión: ${id} a ${status}`);
+        await firebase_1.db.collection('meetings').doc(id).update({ status });
+        console.log('✅ [MEETINGDAO] Estado de reunión actualizado');
+    }
+    /**
+     * Delete a meeting document from Firestore.
+     *
+     * @param {string} id - Firestore document ID of the meeting.
+     * @returns {Promise<void>} Resolves when deletion completes.
+     */
+    async deleteMeeting(id) {
+        console.log(`🔹 [MEETINGDAO] Eliminando reunión: ${id}`);
+        await firebase_1.db.collection('meetings').doc(id).delete();
+        console.log('✅ [MEETINGDAO] Reunión eliminada');
+    }
+}
+exports.MeetingDAO = MeetingDAO;
