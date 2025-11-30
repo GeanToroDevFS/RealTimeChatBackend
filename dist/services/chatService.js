@@ -45,6 +45,12 @@ const initializeChat = (io) => {
             socket.leave(meetingId);
             console.log(`🚪 [CHAT] Usuario ${socket.id} salió de reunión: ${meetingId}`);
         });
+        // Notify meeting ended
+        socket.on('end-meeting', (meetingId) => {
+            console.log(`🏁 [CHAT] Reunión ${meetingId} terminada por creador`);
+            // Emit to all in the room
+            io.to(meetingId).emit('meeting-ended', 'La reunión ha terminado.');
+        });
         socket.on('disconnect', () => {
             console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id}`);
         });
