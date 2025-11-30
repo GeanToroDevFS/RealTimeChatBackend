@@ -25,15 +25,15 @@ const participantsByMeeting = new Map();
 const initializeChat = (io) => {
     io.on('connection', (socket) => {
         console.log(`🔗 [CHAT] Usuario conectado: ${socket.id}`);
-        // Función para obtener usuario del token
+        // Función para obtener usuario del token (ajustada para estructura típica de JWT)
         const getUserFromToken = () => {
             try {
                 const token = socket.handshake.auth?.token;
                 if (!token)
                     return null;
-                // Decodificar token (ajusta según tu implementación de JWT)
+                // Decodificar token (ajusta según tu implementación; asumiendo user: { id, name })
                 const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'your-secret');
-                return { id: decoded.id, name: decoded.name };
+                return decoded.user || decoded; // Si es { user: { id, name } }, usa decoded.user; si no, decoded directo
             }
             catch (err) {
                 console.error('Error decodificando token:', err);
@@ -44,8 +44,8 @@ const initializeChat = (io) => {
         socket.on('join-meeting', async (meetingId) => {
             console.log(`🔹 [CHAT] Usuario ${socket.id} uniendo a reunión: ${meetingId}`);
             const user = getUserFromToken();
-            if (!user) {
-                socket.emit('error', 'Usuario no autenticado');
+            if (!user || !user.id || !user.name) {
+                socket.emit('error', 'Usuario no autenticado o datos incompletos');
                 return;
             }
             const meeting = await meetingDAO.getMeetingById(meetingId);
