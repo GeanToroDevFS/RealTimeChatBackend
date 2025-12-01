@@ -34,14 +34,14 @@ const app = (0, express_1.default)();
 const server = (0, http_1.createServer)(app);
 const io = new socket_io_1.Server(server, {
     cors: {
-        origin: process.env.FRONTEND_URL || 'https://frontend-real-time.vercel.app', // Fallback a la URL de Vercel
+        origin: process.env.FRONTEND_URL || 'https://frontend-real-time.vercel.app', // Fallback to Vercel URL
         methods: ['GET', 'POST'],
     },
 });
 const PORT = process.env.PORT || 3001;
 // Middleware
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || 'https://frontend-real-time.vercel.app', // Fallback a la URL de Vercel
+    origin: process.env.FRONTEND_URL || 'https://frontend-real-time.vercel.app', // Fallback to Vercel URL
     credentials: true,
 }));
 app.use(express_1.default.json());

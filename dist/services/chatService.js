@@ -10,7 +10,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.initializeChat = void 0;
 const MeetingDAO_1 = require("../dao/MeetingDAO");
 const meetingDAO = new MeetingDAO_1.MeetingDAO();
-// Mapa para rastrear conexiones: socket.id -> { userId, name, meetingId }
+// Map to track connections: socket.id -> { userId, name, meetingId }
 const connectedUsers = new Map();
 /**
  * Initialize Socket.IO for chat functionality.
@@ -30,26 +30,26 @@ const initializeChat = (io) => {
                 return;
             }
             socket.join(meetingId);
-            // Verificar si el usuario ya está registrado (para evitar duplicados en reconexiones)
+            // Check if the user is already registered (to avoid duplicates in reconnections)
             const alreadyJoined = Array.from(connectedUsers.values()).some(u => u.userId === userId && u.meetingId === meetingId);
             if (!alreadyJoined) {
-                // Registrar en el mapa
+                // Register on the map
                 connectedUsers.set(socket.id, { userId, name, meetingId });
-                // Emitir a TODA la sala (incluyendo al que se une) que un usuario se unió
+                // Broadcast to the ENTIRE room (including the person joining) that a user has joined
                 io.to(meetingId).emit('user-joined', { userId, name });
                 console.log(`✅ [CHAT] Usuario ${socket.id} unido a sala: ${meetingId}`);
             }
             else {
                 console.log(`⚠️ [CHAT] Usuario ${userId} ya estaba en la sala ${meetingId}, reconexión detectada`);
             }
-            // Enviar lista completa de participantes al que se une (para sincronización inicial)
+            // Send the complete list of participants to the person joining (for initial synchronization)
             const participants = Array.from(connectedUsers.values())
                 .filter(u => u.meetingId === meetingId)
                 .map(u => ({ userId: u.userId, name: u.name }));
             socket.emit('participants-list', participants);
             socket.emit('joined', `Unido a reunión ${meetingId}`);
         });
-        // Handle chat messages (sin cambios)
+        // Handle chat messages (no changes)
         socket.on('send-message', (data) => {
             console.log(`💬 [CHAT] Mensaje en ${data.meetingId} de ${data.author}: ${data.message}`);
             // Emit to all in the room except sender
@@ -59,28 +59,28 @@ const initializeChat = (io) => {
                 timestamp: new Date(),
             });
         });
-        // Leave meeting (sin cambios)
+        // Leave meeting (no changes)
         socket.on('leave-meeting', (meetingId) => {
             socket.leave(meetingId);
             console.log(`🚪 [CHAT] Usuario ${socket.id} salió de reunión: ${meetingId}`);
         });
-        // Notify meeting ended (sin cambios)
+        // Notify meeting ended (no changes)
         socket.on('end-meeting', (meetingId) => {
             console.log(`🏁 [CHAT] Reunión ${meetingId} terminada por creador`);
             // Emit to all in the room
             io.to(meetingId).emit('meeting-ended', 'La reunión ha terminado.');
         });
-        // Handle disconnect: Emitir user-left y terminar reunión si está vacía
+        // Handle disconnect: Issue user-left and end meeting if empty
         socket.on('disconnect', () => {
             const userData = connectedUsers.get(socket.id);
             if (userData) {
                 const { userId, name, meetingId } = userData;
                 console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (${name})`);
-                // Emitir a TODA la sala que el usuario salió
+                // Broadcast to the ENTIRE room that the user left
                 io.to(meetingId).emit('user-left', { userId });
-                // Remover del mapa
+                // Remove from map
                 connectedUsers.delete(socket.id);
-                // Verificar si la sala está vacía y terminar la reunión automáticamente
+                // Check if the room is empty and end the meeting automatically.
                 const room = io.sockets.adapter.rooms.get(meetingId);
                 if (!room || room.size === 0) {
                     console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente`);
