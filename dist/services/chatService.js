@@ -10,7 +10,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.initializeChat = void 0;
 const MeetingDAO_1 = require("../dao/MeetingDAO");
 const meetingDAO = new MeetingDAO_1.MeetingDAO();
-// Map to track connections: socket.id -> { userId, name, meetingId }
+// Mapa para rastrear conexiones: socket.id -> { userId, name, meetingId }
 const connectedUsers = new Map();
 /**
  * Initialize Socket.IO for chat functionality.
@@ -52,6 +52,7 @@ const initializeChat = (io) => {
         // Handle chat messages (no changes)
         socket.on('send-message', (data) => {
             console.log(`💬 [CHAT] Mensaje en ${data.meetingId} de ${data.author}: ${data.message}`);
+            console.log(`Mensaje de ${data.author} en ${data.meetingId}`);
             // Emit to all in the room except sender
             socket.to(data.meetingId).emit('receive-message', {
                 author: data.author,
@@ -78,7 +79,7 @@ const initializeChat = (io) => {
                 console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (${name})`);
                 // Broadcast to the ENTIRE room that the user left
                 io.to(meetingId).emit('user-left', { userId });
-                // Remove from map
+                //Remove from map
                 connectedUsers.delete(socket.id);
                 // Check if the room is empty and end the meeting automatically.
                 const room = io.sockets.adapter.rooms.get(meetingId);
