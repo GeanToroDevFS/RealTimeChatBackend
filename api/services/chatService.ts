@@ -58,6 +58,7 @@ export const initializeChat = (io: SocketIOServer) => {
     // Handle chat messages (no changes)
     socket.on('send-message', (data: { meetingId: string; message: string; author: string }) => {
       console.log(`💬 [CHAT] Mensaje en ${data.meetingId} de ${data.author}: ${data.message}`);
+      console.log(`Mensaje de ${data.author} en ${data.meetingId}`);
       // Emit to all in the room except sender
       socket.to(data.meetingId).emit('receive-message', {
         author: data.author,
