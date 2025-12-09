@@ -33,7 +33,7 @@ export const initializeChat = (io: SocketIOServer) => {
         return;
       }
       socket.join(meetingId);
-      
+
       // Check if the user is already registered (to avoid duplicates in reconnections)
       const alreadyJoined = Array.from(connectedUsers.values()).some(u => u.userId === userId && u.meetingId === meetingId);
       if (!alreadyJoined) {
@@ -45,13 +45,13 @@ export const initializeChat = (io: SocketIOServer) => {
       } else {
         console.log(`⚠️ [CHAT] Usuario ${userId} ya estaba en la sala ${meetingId}, reconexión detectada`);
       }
-      
+
       // Send the complete list of participants to the person joining (for initial synchronization)
       const participants = Array.from(connectedUsers.values())
         .filter(u => u.meetingId === meetingId)
         .map(u => ({ userId: u.userId, name: u.name }));
       socket.emit('participants-list', participants);
-      
+
       socket.emit('joined', `Unido a reunión ${meetingId}`);
     });
 
@@ -86,19 +86,19 @@ export const initializeChat = (io: SocketIOServer) => {
       if (userData) {
         const { userId, name, meetingId } = userData;
         console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (${name})`);
-        
+
         // Broadcast to the ENTIRE room that the user left
         io.to(meetingId).emit('user-left', { userId });
-        
+
         //Remove from map
         connectedUsers.delete(socket.id);
-        
-        // Check if the room is empty and end the meeting automatically.
-        const room = io.sockets.adapter.rooms.get(meetingId);
-        if (!room || room.size === 0) {
-          console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente`);
-          meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
-        }
+
+        // REMOVER: No terminar reunión automáticamente cuando la sala está vacía
+        // const room = io.sockets.adapter.rooms.get(meetingId);
+        // if (!room || room.size === 0) {
+        //   console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente`);
+        //   meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
+        // }
       } else {
         console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (sin datos registrados)`);
       }
