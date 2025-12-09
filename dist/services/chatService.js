@@ -81,12 +81,19 @@ const initializeChat = (io) => {
                 io.to(meetingId).emit('user-left', { userId });
                 //Remove from map
                 connectedUsers.delete(socket.id);
-                // REMOVER: No terminar reunión automáticamente cuando la sala está vacía
-                // const room = io.sockets.adapter.rooms.get(meetingId);
-                // if (!room || room.size === 0) {
-                //   console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente`);
-                //   meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
-                // }
+                // Check if the room is empty and end the meeting automatically after 5 minutes
+                const room = io.sockets.adapter.rooms.get(meetingId);
+                if (!room || room.size === 0) {
+                    console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente en 5 minutos`);
+                    setTimeout(async () => {
+                        // Verificar nuevamente si la sala sigue vacía
+                        const roomAfterTimeout = io.sockets.adapter.rooms.get(meetingId);
+                        if (!roomAfterTimeout || roomAfterTimeout.size === 0) {
+                            await meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
+                            console.log(`🏁 [CHAT] Reunión ${meetingId} terminada por inactividad`);
+                        }
+                    }, 5 * 60 * 1000); // 5 minutos
+                }
             }
             else {
                 console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (sin datos registrados)`);
