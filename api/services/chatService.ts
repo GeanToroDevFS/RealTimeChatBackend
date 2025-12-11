@@ -33,7 +33,7 @@ export const initializeChat = (io: SocketIOServer) => {
         return;
       }
       socket.join(meetingId);
-      
+
       // Check if the user is already registered (to avoid duplicates in reconnections)
       const alreadyJoined = Array.from(connectedUsers.values()).some(u => u.userId === userId && u.meetingId === meetingId);
       if (!alreadyJoined) {
@@ -45,19 +45,20 @@ export const initializeChat = (io: SocketIOServer) => {
       } else {
         console.log(`⚠️ [CHAT] Usuario ${userId} ya estaba en la sala ${meetingId}, reconexión detectada`);
       }
-      
+
       // Send the complete list of participants to the person joining (for initial synchronization)
       const participants = Array.from(connectedUsers.values())
         .filter(u => u.meetingId === meetingId)
         .map(u => ({ userId: u.userId, name: u.name }));
       socket.emit('participants-list', participants);
-      
+
       socket.emit('joined', `Unido a reunión ${meetingId}`);
     });
 
     // Handle chat messages (no changes)
     socket.on('send-message', (data: { meetingId: string; message: string; author: string }) => {
       console.log(`💬 [CHAT] Mensaje en ${data.meetingId} de ${data.author}: ${data.message}`);
+      console.log(`Mensaje de ${data.author} en ${data.meetingId}`);
       // Emit to all in the room except sender
       socket.to(data.meetingId).emit('receive-message', {
         author: data.author,
@@ -85,18 +86,25 @@ export const initializeChat = (io: SocketIOServer) => {
       if (userData) {
         const { userId, name, meetingId } = userData;
         console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (${name})`);
-        
+
         // Broadcast to the ENTIRE room that the user left
         io.to(meetingId).emit('user-left', { userId });
-        
+
         //Remove from map
         connectedUsers.delete(socket.id);
-        
-        // Check if the room is empty and end the meeting automatically.
+
+        // Check if the room is empty and end the meeting automatically after 5 minutes
         const room = io.sockets.adapter.rooms.get(meetingId);
         if (!room || room.size === 0) {
-          console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente`);
-          meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
+          console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente en 5 minutos`);
+          setTimeout(async () => {
+            // Verificar nuevamente si la sala sigue vacía
+            const roomAfterTimeout = io.sockets.adapter.rooms.get(meetingId);
+            if (!roomAfterTimeout || roomAfterTimeout.size === 0) {
+              await meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
+              console.log(`🏁 [CHAT] Reunión ${meetingId} terminada por inactividad`);
+            }
+          }, 5 * 60 * 1000); // 5 minutos
         }
       } else {
         console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (sin datos registrados)`);
