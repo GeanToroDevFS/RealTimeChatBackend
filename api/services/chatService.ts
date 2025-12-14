@@ -11,7 +11,7 @@ import { MeetingDAO } from '../dao/MeetingDAO';
 
 const meetingDAO = new MeetingDAO();
 
-// Mapa para rastrear conexiones: socket.id -> { userId, name, meetingId }
+// Map for tracking connections: socket.id -> { userId, name, meetingId }
 const connectedUsers = new Map<string, { userId: string; name: string; meetingId: string }>();
 
 /**
@@ -98,13 +98,13 @@ export const initializeChat = (io: SocketIOServer) => {
         if (!room || room.size === 0) {
           console.log(`🏁 [CHAT] Sala ${meetingId} vacía, terminando reunión automáticamente en 5 minutos`);
           setTimeout(async () => {
-            // Verificar nuevamente si la sala sigue vacía
+            // Check again if the room is still empty
             const roomAfterTimeout = io.sockets.adapter.rooms.get(meetingId);
             if (!roomAfterTimeout || roomAfterTimeout.size === 0) {
               await meetingDAO.updateMeetingStatus(meetingId, 'ended').catch(err => console.error('Error terminando reunión:', err));
               console.log(`🏁 [CHAT] Reunión ${meetingId} terminada por inactividad`);
             }
-          }, 5 * 60 * 1000); // 5 minutos
+          }, 5 * 60 * 1000); // 5 minutes
         }
       } else {
         console.log(`🔌 [CHAT] Usuario desconectado: ${socket.id} (sin datos registrados)`);
